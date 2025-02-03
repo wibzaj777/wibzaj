@@ -1,0 +1,126 @@
+Certainly! Below is the rewritten code that focuses solely on monitoring a **Solana wallet balance** using the `solana-py` library. This code removes the Raydium logic and simplifies the Lambda function to only fetch and return the wallet balance in SOL.
+
+---
+
+### **Simplified Code for Solana Wallet Balance**
+```python
+import json
+from solana.rpc.api import Client
+from solana.publickey import PublicKey
+
+def lambda_handler(event, context):
+    # Solana RPC endpoint (replace with your own)
+    solana_rpc_url = "https://api.mainnet-beta.solana.com"  # Use a reliable RPC provider
+    client = Client(solana_rpc_url)
+
+    # Wallet address to monitor
+    wallet_address = "YourSolanaWalletAddress"  # Replace with your actual Solana wallet address
+    public_key = PublicKey(wallet_address)
+
+    try:
+        # Get wallet balance
+        balance = client.get_balance(public_key)
+        if balance['result']:
+            balance_lamports = balance['result']['value']  # Balance in lamports
+            balance_sol = balance_lamports / 1e9  # Convert lamports to SOL
+            print(f"Wallet Balance: {balance_sol} SOL")
+        else:
+            print("Failed to fetch balance")
+            balance_sol = None
+
+        # Return response
+        return {
+            'statusCode': 200,
+            'body': json.dumps({
+                'wallet_address': wallet_address,
+                'balance_sol': balance_sol
+            })
+        }
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return {
+            'statusCode': 500,
+            'body': json.dumps({
+                'error': str(e)
+            })
+        }
+```
+
+---
+
+### **Explanation of the Code**
+1. **Solana RPC Connection:**
+   - The `solana-py` library is used to connect to the Solana blockchain via an RPC endpoint.
+   - Replace `https://api.mainnet-beta.solana.com` with a reliable RPC provider like [QuickNode](https://www.quicknode.com/) or [Project Serum](https://projectserum.com/).
+
+2. **Wallet Balance:**
+   - The wallet balance is fetched in **lamports** (the smallest unit of SOL).
+   - The balance is converted to SOL by dividing by `1e9`.
+
+3. **Error Handling:**
+   - The code includes a `try-except` block to handle potential errors (e.g., network issues, invalid wallet address).
+
+4. **AWS Lambda Response:**
+   - The function returns a JSON response with the wallet address and balance in SOL.
+
+---
+
+### **Setting Up Dependencies**
+1. **Install `solana-py`:**
+   - Install the `solana-py` library in a virtual environment:
+     ```bash
+     pip install solana
+     ```
+
+2. **Create a Deployment Package:**
+   - Package the code and dependencies into a `.zip` file:
+     ```bash
+     zip -r deployment_package.zip .
+     ```
+   - Upload the `.zip` file to AWS Lambda.
+
+3. **Environment Variables:**
+   - Store sensitive information (e.g., RPC URL, wallet address) in AWS Lambda environment variables.
+
+---
+
+### **Triggering the Lambda Function**
+1. **EventBridge (CloudWatch Events):**
+   - Schedule the Lambda function to run periodically (e.g., every 5 minutes).
+2. **API Gateway:**
+   - Trigger the Lambda function via an HTTP request.
+3. **Manual Testing:**
+   - Use the **Test** button in the AWS Lambda console to manually trigger the function.
+
+---
+
+### **Example Output**
+When the Lambda function runs, it will return a JSON response like this:
+```json
+{
+  "wallet_address": "YourSolanaWalletAddress",
+  "balance_sol": 10.5
+}
+```
+
+If an error occurs, the response will look like this:
+```json
+{
+  "error": "Failed to fetch balance"
+}
+```
+
+---
+
+### **Next Steps**
+1. **Enhance Monitoring:**
+   - Add logic to monitor multiple wallets or track balance changes over time.
+2. **Send Notifications:**
+   - Use Amazon SNS to send alerts if the balance falls below a certain threshold.
+3. **Optimize Performance:**
+   - Use provisioned concurrency in AWS Lambda to reduce cold start times.
+
+---
+
+This simplified code provides a clean and efficient way to monitor a Solana wallet balance using AWS Lambda. Let me know if you need further assistance!
