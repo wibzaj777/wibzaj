@@ -1,26 +1,51 @@
-# bot.py
 import time
 from solana_utils import get_recent_transactions, get_balance
+from transaction_parser import parse_transaction
 from config import HIGH_PERFORMING_WALLET, MY_WALLET
 
+def calculate_scaling_factor(my_balance, target_balance):
+    """
+    Calculate the scaling factor based on my balance and target balance.
+    """
+    if target_balance == 0:
+        return 0  # Avoid division by zero if the target balance is 0
+    return my_balance / target_balance
+
 def main():
-    print(f"Monitoring transactions for wallet: {HIGH_PERFORMING_WALLET}")
-    
+    """
+    Main loop to poll for recent transactions and calculate scaling factor.
+    """
     while True:
         print("Checking for recent transactions...")
+
+        # Fetch recent transactions for the target wallet
         transactions = get_recent_transactions(HIGH_PERFORMING_WALLET)
-        
-        if transactions:
-            print(f"Found {len(transactions)} transaction(s).")
-            for tx in transactions:
-                print(f"Transaction: {tx['signature']}")
-                # You can process the transaction further here
-                
-        else:
+
+        if not transactions:
             print("No transactions found.")
-        
-        time.sleep(5)  # Check every 5 seconds for new transactions
+        else:
+            # Loop through each transaction and parse the details
+            for tx in transactions:
+                print(f"Transaction found: {tx['signature']}")
+                
+                # Parse the transaction details
+                amount, token = parse_transaction(tx)
+                print(f"Parsed amount: {amount}, Token: {token}")
+                
+                # Fetch the balance of your wallet
+                my_balance = get_balance(MY_WALLET)
+                target_balance = get_balance(HIGH_PERFORMING_WALLET)
+                
+                # Calculate the scaling factor based on your balance and target wallet's balance
+                scaling_factor = calculate_scaling_factor(my_balance, target_balance)
+                
+                # Print the scaling factor and wallet balances for debugging
+                print(f"My Balance: {my_balance} SOL")
+                print(f"Target Wallet Balance: {target_balance} SOL")
+                print(f"Scaling Factor: {scaling_factor}")
+
+        # Wait for 5 seconds before checking again
+        time.sleep(5)
 
 if __name__ == "__main__":
     main()
-
