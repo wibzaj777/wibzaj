@@ -1,26 +1,19 @@
+# solana_utils.py
 import requests
 from config import SOLANA_RPC_URL
+
+LAMPORTS_PER_SOL = 1_000_000_000  # 1 SOL = 1,000,000,000 lamports
 
 def get_recent_transactions(wallet_address, limit=10):
     url = SOLANA_RPC_URL
     params = {
         "jsonrpc": "2.0",
         "id": 1,
-        "method": "getSignaturesForAddress",
+        "method": "getConfirmedSignaturesForAddress2",
         "params": [wallet_address, {"limit": limit}],
     }
-    try:
-        response = requests.post(url, json=params)
-        response_data = response.json()
-        
-        # Check for errors in the response
-        if "error" in response_data:
-            raise Exception(f"Error in fetching transactions: {response_data['error']}")
-
-        return response_data.get("result", [])
-    except Exception as e:
-        print(f"Error: {e}")
-        return []
+    response = requests.post(url, json=params)
+    return response.json().get("result", [])
 
 def get_balance(wallet_address):
     url = SOLANA_RPC_URL
@@ -30,15 +23,6 @@ def get_balance(wallet_address):
         "method": "getBalance",
         "params": [wallet_address],
     }
-    try:
-        response = requests.post(url, json=params)
-        response_data = response.json()
-        
-        # Check for errors in the response
-        if "error" in response_data:
-            raise Exception(f"Error in fetching balance: {response_data['error']}")
-
-        return response_data["result"]["value"]
-    except Exception as e:
-        print(f"Error: {e}")
-        return 0
+    response = requests.post(url, json=params)
+    lamports = response.json().get("result", {}).get("value", 0)
+    return lamports / LAMPORTS_PER_SOL  # Convert lamports to SOL
