@@ -1,10 +1,16 @@
+# config.py
 import os
+from dotenv import load_dotenv
 
-# Environment variables for sensitive information
+load_dotenv()  # Load environment variables from .env file
+
 HIGH_PERFORMING_WALLET = os.getenv("HIGH_PERFORMING_WALLET")
 MY_WALLET = os.getenv("MY_WALLET")
 SOLANA_RPC_URL = os.getenv("SOLANA_RPC_URL", "https://api.mainnet-beta.solana.com")
+API_KEY = os.getenv("API_KEY", None)
 
-# Optional: Validate required variables
-if not HIGH_PERFORMING_WALLET or not MY_WALLET:
-    raise ValueError("Both HIGH_PERFORMING_WALLET and MY_WALLET must be set!")
+# Test by printing the loaded values
+print(f"HIGH_PERFORMING_WALLET: {HIGH_PERFORMING_WALLET}")
+print(f"MY_WALLET: {MY_WALLET}")
+print(f"SOLANA_RPC_URL: {SOLANA_RPC_URL}")
+print(f"API_KEY: {API_KEY}")
