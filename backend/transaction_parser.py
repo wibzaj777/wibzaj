@@ -1,4 +1,18 @@
 def parse_transaction(transaction):
-    amount = transaction.get("amount", 0)
-    token = transaction.get("token", "SOL")  # Example placeholder, adjust as per actual transaction data
+    # Initialize defaults
+    amount = 0
+    token = "SOL"  # Default token in case no token is involved in the transaction
+
+    # Check for token transfers in the transaction
+    token_transfers = transaction.get('meta', {}).get('postTokenBalances', [])
+
+    if token_transfers:
+        for transfer in token_transfers:
+            # Extract the token amount (using 'uiAmount')
+            if 'uiAmount' in transfer:
+                amount = transfer['uiAmount']
+            
+            # Token mint address identifies the token involved (e.g., memecoin token)
+            if 'mint' in transfer:
+                token = transfer['mint']  # Mint address is a unique identifier for the token
     return amount, token
