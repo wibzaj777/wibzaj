@@ -98,6 +98,122 @@ The program is designed to monitor **Solana blockchain transactions** involving 
 
 This update reflects the current state of the system, including the retry logic, keep-alive pinging, and subscription request handling. It also highlights that while the core structure for transaction monitoring, parsing, and trade calculation is in place, **trade execution** is yet to be implemented.
 
-Let me know if you need further details or modifications to the summary!
+When you run this program currently, the terminal output will look something like this. Here is an explanation of what you'll be seeing in the terminal and what it means. This should help with continuing to debug and develop. 
+
+Let's break down the output you're seeing step-by-step and highlight the key points that you should make note of:
+
+### 1. **Initial Debug Information**
+   ```
+   DEBUG:asyncio:Using proactor: IocpProactor
+   DEBUG:websockets.client:= connection is CONNECTING
+   ```
+   - **`Using proactor: IocpProactor`**: This is the `asyncio` event loop you're using in Windows to handle asynchronous I/O. It's just part of the asyncio setup and isn't a problem, but it's useful for diagnosing issues related to concurrency.
+   - **`connection is CONNECTING`**: The WebSocket client is trying to establish the connection at this point.
+
+---
+
+### 2. **WebSocket Handshake (HTTP → WebSocket Upgrade)**
+   ```
+   DEBUG:websockets.client:> GET / HTTP/1.1
+   DEBUG:websockets.client:> Host: api.mainnet-beta.solana.com
+   DEBUG:websockets.client:> Upgrade: websocket
+   DEBUG:websockets.client:> Connection: Upgrade
+   DEBUG:websockets.client:> Sec-WebSocket-Key: M+zuT9iqO9Or66Vp8enH4g==
+   DEBUG:websockets.client:> Sec-WebSocket-Version: 13
+   DEBUG:websockets.client:> Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits
+   ```
+   - These are part of the WebSocket **handshake** that happens when a connection is established.
+   - The client is sending an HTTP `GET` request to the WebSocket server (`api.mainnet-beta.solana.com`) to initiate the WebSocket connection. It's upgrading the connection to a WebSocket (`Upgrade: websocket`).
+
+---
+
+### 3. **WebSocket Connection Upgrade Success**
+   ```
+   DEBUG:websockets.client:< HTTP/1.1 101 Switching Protocols
+   DEBUG:websockets.client:< upgrade: websocket
+   DEBUG:websockets.client:< connection: Upgrade
+   DEBUG:websockets.client:< sec-websocket-accept: OK6m5SLDmrDrhxP+5f8acNa7DTo=
+   DEBUG:websockets.client:< x-rpc-node: dal17
+   DEBUG:websockets.client:< x-ratelimit-tier: free
+   DEBUG:websockets.client:< x-ratelimit-method-limit: 40
+   DEBUG:websockets.client:< x-ratelimit-method-remaining: 39
+   DEBUG:websockets.client:< x-ratelimit-rps-limit: 100
+   DEBUG:websockets.client:< x-ratelimit-rps-remaining: 99
+   DEBUG:websockets.client:< x-ratelimit-endpoint-limit: unlimited
+   DEBUG:websockets.client:< x-ratelimit-endpoint-remaining: -2204
+   DEBUG:websockets.client:< x-ratelimit-conn-limit: 40
+   DEBUG:websockets.client:< x-ratelimit-conn-remaining: 39
+   DEBUG:websockets.client:< x-ratelimit-connrate-limit: 40
+   DEBUG:websockets.client:< x-ratelimit-connrate-remaining: 39
+   DEBUG:websockets.client:< x-ratelimit-pubsub-limit: 5
+   DEBUG:websockets.client:< x-ratelimit-pubsub-remaining: 5
+   DEBUG:websockets.client:< access-control-allow-origin: backend_traffic
+   ```
+   - **Connection Upgrade**: The server responds with a `101 Switching Protocols`, which means the WebSocket connection has been successfully established.
+   - **Rate Limit Information**: These `x-ratelimit-*` headers are important to monitor since they inform you about the limits the server places on requests. For example:
+     - **`x-ratelimit-method-limit: 40`** indicates you can make up to 40 requests per method in a given time frame.
+     - **`x-ratelimit-rps-limit: 100`** indicates 100 requests per second are allowed.
+   - **`x-ratelimit-pubsub-limit: 5`**: This is crucial because it means you can only subscribe to 5 different topics at the same time.
+
+---
+
+### 4. **WebSocket Connection Established**
+   ```
+   DEBUG:websockets.client:= connection is OPEN
+   INFO:root:WebSocket connection established
+   ```
+   - **Connection is Open**: This confirms the WebSocket connection is successfully established, and you're now ready to send and receive data over it.
+   - **`INFO:root:WebSocket connection established`**: This is a custom log in your code, confirming the WebSocket connection was successfully opened.
+
+---
+
+### 5. **Subscription Request Sent**
+   ```
+   DEBUG:websockets.client:> TEXT '{"jsonrpc": "2.0", "id": 1, "method": "logsSubscribe", "params": [{"mentions": ["DfMxre4cKmvogbLrPigxmibVTTQDuzjdXojWzjCXXhzj"]}]}' [130 bytes]
+   INFO:root:Sent subscription request: {"jsonrpc": "2.0", "id": 1, "method": "logsSubscribe", "params": [{"mentions": ["DfMxre4cKmvogbLrPigxmibVTTQDuzjdXojWzjCXXhzj"]}]}
+   ```
+   - The subscription request is being sent successfully. This is the request asking the WebSocket server to start sending logs related to transactions involving your **`HIGH_PERFORMING_WALLET`**.
+   - The request is logged in the console under `INFO`, showing the payload being sent.
+
+---
+
+### 6. **WebSocket Keepalive Pings**
+   ```
+   DEBUG:websockets.client:> PING 86 db fe a3 [binary, 4 bytes]
+   DEBUG:root:Sent ping to keep connection alive
+   DEBUG:websockets.client:< PONG 86 db fe a3 [binary, 4 bytes]
+   DEBUG:websockets.client:% sending keepalive ping
+   DEBUG:websockets.client:> PING '[x\x1f\x02' [text, 4 bytes]
+   DEBUG:websockets.client:< PONG '[x\x1f\x02' [text, 4 bytes]
+   DEBUG:websockets.client:% received keepalive pong
+   DEBUG:websockets.client:> PING 82 f6 65 6c [binary, 4 bytes]
+   DEBUG:root:Sent ping to keep connection alive
+   DEBUG:websockets.client:< PONG 82 f6 65 6c [binary, 4 bytes]
+   ```
+   - **Ping/Pong**: This is the WebSocket keepalive mechanism. Your client is sending "PING" messages every 30 seconds to keep the connection alive, and the server responds with "PONG".
+   - **Keep Connection Alive**: This is important to ensure the WebSocket connection remains open and doesn't time out due to inactivity.
+
+---
+
+### 7. **First Subscription Response**
+   ```
+   DEBUG:websockets.client:< TEXT '{"jsonrpc":"2.0","result":106463270,"id":1}' [43 bytes]
+   ```
+   - **Response to Subscription**: This is the WebSocket server’s response confirming the subscription. The `"result": 106463270` indicates a successful subscription, and it may correspond to the subscription ID assigned by the server.
+
+---
+
+### Summary of Key Points:
+
+1. **Connection Established**: Your WebSocket connection has been established successfully, as indicated by `INFO:root:WebSocket connection established`.
+2. **Subscription Request Sent**: The system has sent a subscription request asking for logs related to transactions involving your high-performing wallet (`DfMxre4cKmvogbLrPigxmibVTTQDuzjdXojWzjCXXhzj`).
+3. **Keepalive Ping**: The connection is being kept alive using ping/pong messages, as expected.
+4. **Subscription Confirmation**: The server has responded with a success message, confirming that the subscription has been successfully established.
+
+### Things to Monitor:
+- **Rate Limiting**: Monitor the `x-ratelimit-*` headers to ensure you don’t exceed the rate limits of the WebSocket server, especially if you plan to scale up your subscription requests.
+- **Handling Incoming Logs**: The logs you are receiving now will need to be parsed and processed according to your application’s logic. You’re subscribing to specific logs, but the actual processing logic (such as detecting a buy/sell action) needs to be triggered when the logs arrive.
+
+If you have any specific concerns or questions about what you're seeing, feel free to let me know!
 
 
