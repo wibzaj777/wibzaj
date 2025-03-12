@@ -49,48 +49,54 @@ async def listen_for_transactions():
                     message = await websocket.recv()
 
                     try:
+                        # Parse the message data
                         message_data = json.loads(message)
+
+                        # Print the raw message data for debugging (pretty print)
+                        logging.debug("Received raw message data: %s", json.dumps(message_data, indent=4))
 
                         # Parse the logs from the received message
                         if "params" in message_data:
-                            logs = message_data["params"].get("result", {}).get("value", {}).get("logs", [])
+                            result = message_data["params"].get("result", {})
+                            signature = result.get("signature", None)  # Attempt to extract signature directly from the result
 
-                            # Filter logs to look for "Buy" or "Sell" actions
-                            for log in logs:
-                                if "Buy" in log or "Sell" in log:  # You can fine-tune this check as needed
-                                    # Extract the transaction signature
-                                    signature = message_data["params"]["result"].get("signature")
-                                    if not signature:
-                                        logging.error("Signature not found in the received log data.")
-                                        continue
-                                    logging.info(f"Processing transaction: {signature}")
+                            if signature:
+                                logging.info(f"Processing transaction with signature: {signature}")
+                                logs = result.get("value", {}).get("logs", [])
 
-                                    # Get transaction details using the signature
-                                    transaction_details = await get_transaction_details(signature)
+                                # Check if logs contain relevant information
+                                if logs:
+                                    for log in logs:
+                                        if "Buy" in log or "Sell" in log:
+                                            logging.info(f"Relevant log found: {log}")
+                                            
+                                            # Now, fetch transaction details
+                                            transaction_details = await get_transaction_details(signature)
+                                            
+                                            if transaction_details:
+                                                amount, token = parse_transaction(transaction_details)
+                                                logging.info(f"Trade detected: Amount - {amount} {token}")
+                                                
+                                                # Example: Calculate proportional trade amount based on wallet balances
+                                                if token == "SOL":  # Example for Solana transactions
+                                                    high_wallet_balance = await get_balance(HIGH_PERFORMING_WALLET)
+                                                    my_wallet_balance = await get_balance(MY_WALLET)
 
-                                    if transaction_details:
-                                        # Parse the transaction (this happens in the parser)
-                                        amount, token = parse_transaction(transaction_details)
-                                        logging.info(f"Trade detected: Amount - {amount} {token}")
+                                                    # Log wallet balances
+                                                    logging.info(f"High performing wallet balance: {high_wallet_balance}")
+                                                    logging.info(f"My wallet balance: {my_wallet_balance}")
 
-                                        # Proceed to calculate the proportional buy/sell amount
-                                        if token == "SOL":  # For Solana token transactions
-                                            high_wallet_balance = await get_balance(HIGH_PERFORMING_WALLET)
-                                            my_wallet_balance = await get_balance(MY_WALLET)
-
-                                            logging.info(f"High performing wallet balance: {high_wallet_balance}")
-                                            logging.info(f"My wallet balance: {my_wallet_balance}")
-
-                                            # Calculate proportional trade amount
-                                            if high_wallet_balance > 0 and my_wallet_balance > 0:
-                                                proportion = my_wallet_balance / high_wallet_balance
-                                                trade_amount = amount * proportion
-                                                logging.info(f"Proportional trade amount to execute: {trade_amount} SOL")
-
-                                                # Add your logic here to execute the trade with `trade_amount` (e.g., execute_trade(trade_amount))
-                                            else:
-                                                logging.warning("Cannot calculate proportional trade due to zero balance in one of the wallets.")
-
+                                                    # Proportional calculation
+                                                    if high_wallet_balance > 0 and my_wallet_balance > 0:
+                                                        proportion = my_wallet_balance / high_wallet_balance
+                                                        trade_amount = amount * proportion
+                                                        logging.info(f"Proportional trade amount to execute: {trade_amount} SOL")
+                                                    else:
+                                                        logging.warning("Cannot calculate proportional trade due to zero balance.")
+                                else:
+                                    logging.info("No relevant logs found in the message.")
+                            else:
+                                logging.error("Signature not found in the received log data.")
                     except json.JSONDecodeError:
                         logging.error(f"Failed to parse message: {message}")
 
