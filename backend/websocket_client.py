@@ -58,7 +58,7 @@ async def listen_for_transactions():
                         # Parse the logs from the received message
                         if "params" in message_data:
                             result = message_data["params"].get("result", {})
-                            signature = result.get("signature", None)  # Attempt to extract signature directly from the result
+                            signature = result.get("signature", None)  # Correct extraction of signature
 
                             if signature:
                                 logging.info(f"Processing transaction with signature: {signature}")
